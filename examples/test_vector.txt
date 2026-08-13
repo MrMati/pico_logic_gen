@@ -1,0 +1,19 @@
+# Canonical validation vector from the design brief.
+#
+# Expected edge positions in 25 MHz sample clocks (40 ns/sample):
+#
+#   t=0     outputs = 0x00 (initial state)
+#   t=10    -> 0xFF   (400 ns)
+#   t=20    -> 0x00   (800 ns)
+#   t=120   -> 0x55   (4.80 us)
+#   t=157   -> 0xAA   (6.28 us)
+#   t=5157  -> 0x00   (206.28 us), held after completion
+#
+# Verify with: picowave sim examples/test_vector.txt --vcd test_vector.vcd
+
+initial 0x00
+10   -> 0xFF
+10   -> 0x00
+100  -> 0x55
+37   -> 0xAA
+5000 -> 0x00

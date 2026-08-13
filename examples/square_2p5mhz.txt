@@ -1,0 +1,27 @@
+# 2.5 MHz square wave on channel 0 (GP0), 50% duty, 10 periods.
+# At the 25 MHz sample clock one period = 10 samples (5 high, 5 low).
+# Note: a frequency like 1 MHz at exactly 50% duty is impossible on a
+# 40 ns grid (half period = 12.5 samples); pick frequencies whose half
+# period is an integer number of samples, or lower the sample clock.
+
+initial 0x00
+5 -> 0x01
+5 -> 0x00
+5 -> 0x01
+5 -> 0x00
+5 -> 0x01
+5 -> 0x00
+5 -> 0x01
+5 -> 0x00
+5 -> 0x01
+5 -> 0x00
+5 -> 0x01
+5 -> 0x00
+5 -> 0x01
+5 -> 0x00
+5 -> 0x01
+5 -> 0x00
+5 -> 0x01
+5 -> 0x00
+5 -> 0x01
+5 -> 0x00

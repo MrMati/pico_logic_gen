@@ -1,0 +1,57 @@
+;
+; waveplay.pio - deterministic event-driven waveform player
+;
+; One "sample" = exactly 5 PIO clock cycles. With the PIO clocked at
+; 125 MHz (sys clock, integer divider D = 1) this yields a 25 MHz
+; sample timebase (40 ns). Slower sample clocks use larger integer
+; dividers:
+;
+;     sample_clock_hz = 125_000_000 / (5 * D) = 25_000_000 / D
+;
+; with D an integer in 1..65535. Fractional dividers are never used
+; because they introduce cycle-to-cycle jitter.
+;
+; Word format (one 32-bit FIFO word per event, OSR shifts right,
+; autopull threshold 32):
+;
+;     bits [23:0]  = N - 1, where N >= 1 is the hold time in samples
+;     bits [31:24] = new output state (8 channels)
+;
+; Event semantics: hold the *current* pin state for N samples, then
+; drive the new state on all 8 pins simultaneously (single OUT).
+;
+; Cycle accounting (PIO cycles, one instruction = 1 cycle + delay):
+;
+;   N == 1:  out x, 24 [1]     2 cycles
+;            jmp x-- loop_wait     1 cycle  (falls through, x was 0)
+;            out pins, 8 [1]   2 cycles     -> total 5 = 5*1
+;
+;   N >= 2:  out x, 24 [1]     2 cycles
+;            N-1 loop passes:
+;              jmp x-- loop_wait   1 cycle  (taken)
+;              jmp loop_test [3]    4 cycles     -> 5*(N-1)
+;            jmp x-- loop_wait     1 cycle  (falls through)
+;            out pins, 8 [1]   2 cycles     -> total 5*N
+;
+; The pins update at the end of the first cycle of 'out pins, 8 [1]',
+; i.e. edge k becomes visible at PIO cycle (5 * sum(N_1..N_k) - 1)
+; after the state machine is enabled. The offset (-1 cycle) is a
+; constant for every event, so consecutive edges are spaced exactly
+; 5*N PIO cycles = N samples apart, independent of CPU/IRQ/USB
+; activity: once started, the program only touches the TX FIFO, which
+; is kept full by DMA.
+;
+; End of waveform: the FIFO drains and the SM stalls forever on
+; 'out x, 24' with the last state still driven. The TXSTALL flag in
+; FDEBUG is used by the CPU to detect completion.
+
+.program waveplay
+
+.wrap_target
+    out x, 24        [1]  ; load N-1 (2 cycles)
+loop_test:
+    jmp x-- loop_wait         ; 1 cycle; falls through when x == 0
+    out pins, 8      [1]  ; drive new state atomically (2 cycles)
+.wrap
+loop_wait:
+    jmp loop_test         [3]  ; 4 cycles; one full loop pass = 5 cycles

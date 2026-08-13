@@ -1,0 +1,51 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  host-tests:
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install host package
+        run: pip install ./host pytest
+      - name: Run host tests
+        run: pytest host/tests -q
+      - name: Smoke-test CLI
+        run: |
+          picowave build examples/test_vector.txt -o /tmp/test.plw
+          picowave info /tmp/test.plw
+          picowave sim /tmp/test.plw --vcd /tmp/test.vcd
+
+  firmware:
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install ARM toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake gcc-arm-none-eabi \
+            libnewlib-arm-none-eabi libstdc++-arm-none-eabi-newlib
+      - name: Fetch pico-sdk
+        run: |
+          git clone --depth 1 --branch 2.1.1 \
+            https://github.com/raspberrypi/pico-sdk /tmp/pico-sdk
+          cd /tmp/pico-sdk
+          git submodule update --init --depth 1 lib/tinyusb lib/cyw43-driver
+      - name: Build firmware (pico_w)
+        run: |
+          cmake -B build -DPICO_SDK_PATH=/tmp/pico-sdk
+          cmake --build build -j"$(nproc)"
+      - name: Upload UF2
+        uses: actions/upload-artifact@v4
+        with:
+          name: plg_firmware
+          path: |
+            build/firmware/plg_firmware.uf2
+            build/firmware/plg_firmware.elf
