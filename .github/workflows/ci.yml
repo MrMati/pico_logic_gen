@@ -7,7 +7,7 @@ on:
 
 jobs:
   host-tests:
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -24,7 +24,7 @@ jobs:
           picowave sim /tmp/test.plw --vcd /tmp/test.vcd
 
   firmware:
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
       - name: Install ARM toolchain
